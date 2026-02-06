@@ -43,7 +43,7 @@ async def add_package(package: str):
         line = lines[i].rstrip()
 
         if line.startswith("packages:"):
-            lines.insert(i + 1, f"  - {item}\n")
+            lines.insert(i + 1, item)
             i += 1
         elif line.startswith("extra-tortoise-models:"):
             lines.insert(i + 1, '  - "ballsdex.core.pack_models"\n')
