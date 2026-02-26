@@ -46,7 +46,8 @@ DJANGO_APP_FILES = {
         "models.py", 
         "migrations/__init__.py", 
         "migrations/0001_initial.py",
-        "migrations/0002_item_emoji_id.py"
+        "migrations/0002_item_emoji_id.py",
+        "migrations/0003_currencysettings.py"
     ]
 }
 
