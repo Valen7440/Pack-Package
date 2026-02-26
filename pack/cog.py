@@ -3,7 +3,7 @@ import random
 import json
 import tomllib
 from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -11,8 +11,10 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.utils import format_dt
+from tortoise.timezone import get_default_timezone
+from tortoise.timezone import now as tortoise_now
 
-from ballsdex.core.models import Ball, BallInstance, Player
+from ballsdex.core.models import Ball, BallInstance, Special, Player, specials
 from ballsdex.core.pack_models import PackResource
 from ballsdex.core.currency_models import Item as ItemModel, MoneyInstance
 from ballsdex.packages.admin.cog import FieldPageSource, Pages
@@ -208,6 +210,10 @@ class Pack(commands.GroupCog):
         """
         await interaction.response.defer(thinking=True)
         packs = await ItemModel.all().order_by("prize").prefetch_related("special")
+
+        if not packs:
+            await interaction.followup.send(f"{settings.bot_name} doesn't have any packs to buy.")
+            return
         
         entries: list[tuple[str, str]] = []
         for pack in packs:
@@ -215,13 +221,22 @@ class Pack(commands.GroupCog):
                 emoji = str(self.bot.get_emoji(pack.emoji_id))
             else:
                 emoji = ""
-            
-            description = (
-                f"Price: **{pack.prize:,}**\n"
-                f"Minimum Rarity: **{pack.minimum_rarity}**\n"
-                f"Maximum Rarity: **{pack.maximum_rarity}**\n"
-                f"Special: **{pack.special.name if pack.special else 'Any'}**\n"
-            )
+        
+            if pack.description:
+                description = (
+                    f"{pack.description}\n"
+                    f"Price: **{pack.prize:,}**\n"
+                    f"Minimum Rarity: **{pack.minimum_rarity}**\n"
+                    f"Maximum Rarity: **{pack.maximum_rarity}**\n"
+                    f"Special: **{pack.special.name if pack.special else 'Any'}**\n"
+                )
+            else:
+                description = (
+                    f"Price: **{pack.prize:,}**\n"
+                    f"Minimum Rarity: **{pack.minimum_rarity}**\n"
+                    f"Maximum Rarity: **{pack.maximum_rarity}**\n"
+                    f"Special: **{pack.special.name if pack.special else 'Any'}**\n"
+                )
             
             entries.append(
                 (
@@ -270,11 +285,13 @@ class Pack(commands.GroupCog):
             tradeable=True,
             rarity__range=(pack.minimum_rarity, pack.maximum_rarity)
         )
+        special = pack.special or self.get_random_special()
         ball = await self._get_random_countryball(balls)
         rarity = ball.rarity
         instance = await BallInstance.create(
             player=player,
             ball=ball,
+            special=special,
             health_bonus=random.randint(-settings.max_health_bonus, settings.max_health_bonus),
             attack_bonus=random.randint(-settings.max_attack_bonus, settings.max_attack_bonus),
         )
@@ -339,3 +356,29 @@ class Pack(commands.GroupCog):
         rarities = [x.rarity for x in countryballs]
         cb = random.choices(population=countryballs, weights=rarities, k=1)[0]
         return cb
+
+    def get_random_special(self) -> Special | None:
+        population = [
+            x
+            for x in specials.values()
+            # handle null start/end dates with infinity times
+            if (x.start_date or datetime.min.replace(tzinfo=get_default_timezone()))
+            <= tortoise_now()
+            <= (x.end_date or datetime.max.replace(tzinfo=get_default_timezone()))
+        ]
+
+        if not population:
+            return None
+
+        common_weight: float = 1 - sum(x.rarity for x in population)
+
+        if common_weight < 0:
+            common_weight = 0
+
+        weights = [x.rarity for x in population] + [common_weight]
+        # None is added representing the common countryball
+        special: Special | None = random.choices(
+            population=population + [None], weights=weights, k=1
+        )[0]
+
+        return special
