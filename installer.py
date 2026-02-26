@@ -24,9 +24,10 @@ PACKAGE_PATH = "ballsdex/packages/pack"
 PACKAGE_FILES = [
     "__init__.py", 
     "cog.py", 
-    "item_types.py",
     "config.toml",
-    "items.json"
+    "item_types.py",
+    "items.json",
+    "transformers.py"
 ]
 TORTOISE_MODELS = ["pack_models.py", "currency_models.py"]
 DJANGO_APP_FILES = {
