@@ -309,7 +309,7 @@ class Pack(commands.GroupCog):
             elif item["type"] == ItemType.Weapon:
                 desc += f"⚔️ **Weapon Rarity:** {item["rarity"]}\n"
         if special:
-            desc += f"⚡ **Special:** {special.name}"
+            desc += f"⚡ **Special:** {special.name}\n"
         desc += (
             f"❤️ **Health:** {ball.health}\n"
             f"⚔️ **Attack:** {ball.attack}\n"
